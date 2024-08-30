@@ -1,11 +1,11 @@
-"""Setup file for gruut"""
+"""Setup file for gruut_sf"""
 from collections import defaultdict
 from pathlib import Path
 
 import setuptools
 
 this_dir = Path(__file__).parent
-module_dir = this_dir / "gruut"
+module_dir = this_dir / "gruut_sf"
 
 # -----------------------------------------------------------------------------
 
@@ -87,21 +87,21 @@ data_files = [
 ]
 
 setuptools.setup(
-    name="gruut",
+    name="gruut_sf",
     description="A tokenizer, text cleaner, and phonemizer for many human languages.",
     version=version,
     author="Michael Hansen",
     author_email="mike@rhasspy.org",
     url="https://github.com/rhasspy/gruut",
     packages=setuptools.find_packages(),
-    package_data={"gruut": data_files + ["VERSION", "py.typed"]},
+    package_data={"gruut_sf": data_files + ["VERSION", "py.typed"]},
     install_requires=requirements,
     extras_require={
         ':python_version<"3.7"': ["dataclasses", "types-dataclasses"],
         ':python_version<"3.9"': ["importlib_resources"],
         **extras_require,
     },
-    entry_points={"console_scripts": ["gruut = gruut.__main__:main"]},
+    entry_points={"console_scripts": ["gruut_sf = gruut_sf.__main__:main"]},
     classifiers=[
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.6",
