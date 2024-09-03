@@ -2391,7 +2391,7 @@ class TextProcessor:
 
         # Post-process currency words
         if num_has_frac:
-            # Discard num2words separator
+            # Replace num2words separator with and
             num_str = num_str.replace("|", " and")
         else:
             # Remove 'zero cents' part
