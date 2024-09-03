@@ -2390,10 +2390,12 @@ class TextProcessor:
             return
 
         # Post-process currency words
-        if not num_has_frac:
+        if num_has_frac:
+            # Discard num2words separator
+            num_str = num_str.replace("|", "and")
+        else:
             # Remove 'zero cents' part
-            num_str_split = num_str.split(" and")
-            num_str = num_str.replace('and' + num_str_split[len(num_str_split) - 1], "")
+            num_str = num_str.split("|", maxsplit=1)[0]
 
         # Add original whitespace back in
         first_ws, last_ws = settings.get_whitespace(word.text_with_ws)
