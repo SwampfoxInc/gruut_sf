@@ -2379,7 +2379,7 @@ class TextProcessor:
         num2words_kwargs["currency"] = word.currency_name
 
         # Custom separator so we can remove 'zero cents'
-        num2words_kwargs["separator"] = " and"
+        num2words_kwargs["separator"] = "|"
 
         try:
             num_str = num2words(float(decimal_num), **num2words_kwargs)
@@ -2392,7 +2392,7 @@ class TextProcessor:
         # Post-process currency words
         if num_has_frac:
             # Discard num2words separator
-            num_str = num_str.replace("|", "and")
+            num_str = num_str.replace("|", " and")
         else:
             # Remove 'zero cents' part
             num_str = num_str.split("|", maxsplit=1)[0]
