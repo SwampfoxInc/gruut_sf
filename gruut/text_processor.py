@@ -370,7 +370,28 @@ class TextProcessor:
                 w.text for w in sentence.words if w.is_spoken
             )
 
-            # Normalize voice
+            # Normalize rate
+            sent_rate = sentence.rate
+
+            # Get rate used across all words
+            for word in sentence.words:
+                if word.rate:
+                    if sent_rate and (sent_rate != word.rate):
+                        # Multiple rates
+                        sent_rate = ""
+                        break
+
+                    sent_rate = word.rate
+
+            if sent_rate:
+                sentence.rate = sent_rate
+
+                # Set rate on all words
+                for word in sentence.words:
+                    word.rate = sent_rate
+
+
+            # Normalize rate
             sent_voice = sentence.voice
 
             # Get voice used across all words
