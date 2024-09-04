@@ -308,6 +308,7 @@ class WordNode(Node):
     text_with_ws: str = ""
     interpret_as: typing.Union[str, InterpretAs] = ""
     format: typing.Union[str, InterpretAsFormat] = ""
+    rate: str = ""
 
     number: typing.Optional[Decimal] = None
     date: typing.Optional[datetime] = None
