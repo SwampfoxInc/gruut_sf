@@ -174,6 +174,7 @@ class TextProcessor:
                             pos=word_node.pos if pos else None,
                             lang=get_lang(node.lang),
                             voice=node.voice,
+                            rate=node.rate,
                             pause_before_ms=word_pause_before_ms,
                             marks_before=(
                                 word_marks_before if word_marks_before else None
@@ -211,6 +212,7 @@ class TextProcessor:
                                 is_major_break=is_major_break,
                                 lang=get_lang(node.lang),
                                 voice=node.voice,
+                                rate=node.voice,
                                 pause_before_ms=word_pause_before_ms,
                                 marks_before=(
                                     word_marks_before if word_marks_before else None
