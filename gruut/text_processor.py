@@ -390,7 +390,7 @@ class TextProcessor:
                     word.rate = sent_rate
 
 
-            # Normalize rate
+            # Normalize voice
             sent_voice = sentence.voice
 
             # Get voice used across all words
