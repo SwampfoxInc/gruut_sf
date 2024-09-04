@@ -554,14 +554,14 @@ class TextProcessor:
             if voice_stack:
                 scope["voice"] = voice_stack[-1]
 
-            if prosody_stack:
-                scope["rate"] = prosody_stack[-1]
-
             scope["lang"] = current_lang
 
             if target_class is WordNode:
                 if say_as_stack:
                     scope["interpret_as"], scope["format"] = say_as_stack[-1]
+
+                if prosody_stack:
+                    scope["rate"] = prosody_stack[-1]
 
                 if word_role is not None:
                     scope["role"] = word_role
