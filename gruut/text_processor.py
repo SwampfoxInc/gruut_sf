@@ -515,6 +515,9 @@ class TextProcessor:
         # [voice]
         voice_stack: typing.List[str] = []
 
+        # [rate]
+        prosody_stack: typing.List[str] = []
+
         # [(interpret_as, format)]
         say_as_stack: typing.List[typing.Tuple[str, str]] = []
 
@@ -550,6 +553,9 @@ class TextProcessor:
             scope = {}
             if voice_stack:
                 scope["voice"] = voice_stack[-1]
+
+            if prosody_stack:
+                scope["rate"] = prosody_stack[-1]
 
             scope["lang"] = current_lang
 
@@ -707,6 +713,9 @@ class TextProcessor:
                 elif end_tag == "say-as":
                     if say_as_stack:
                         say_as_stack.pop()
+                elif end_tag == "prosody":
+                    if prosody_stack:
+                        prosody_stack.pop()
                 elif end_tag == "lookup":
                     if lookup_stack:
                         lookup_stack.pop()
@@ -920,6 +929,9 @@ class TextProcessor:
                             attrib_no_namespace(elem, "format", ""),
                         )
                     )
+                elif elem_tag == "prosody":
+                    prosody_rate = attrib_no_namespace(elem, "rate", "1")
+                    prosody_stack.append(prosody_rate)
                 elif elem_tag == "sub":
                     # Sub
                     last_alias = attrib_no_namespace(elem, "alias", "")
