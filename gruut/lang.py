@@ -455,7 +455,7 @@ def get_es_settings(lang_dir=None, **settings_args) -> TextProcessorSettings:
         "begin_punctuations": {'"', "“", "«", "[", "(", "<", "¡", "¿"},
         "end_punctuations": {'"', "”", "»", "]", ")", ">"},
         "default_currency": "EUR",
-        "default_date_format": InterpretAsFormat.DATE_DMY,
+        "default_date_format": InterpretAsFormat.DATE_MDY,
         "replacements": [("’", "'")],  # normalize apostrophe
         **settings_args,
     }
