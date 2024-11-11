@@ -2428,6 +2428,8 @@ class TextProcessor:
             # Replace num2words separator with and
             num_str = num_str.replace("|", " and")
             num_str = num_str.replace(" and ", " ", num_str.count(" and ") - 1)  # Only the last "and" is retained
+            if num2words_kwargs["lang"].startswith("es"):
+                num_str.replace(" and ", " y ")
         else:
             # Remove 'zero cents' part
             num_str = num_str.split("|", maxsplit=1)[0]
