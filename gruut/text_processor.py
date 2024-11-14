@@ -2433,7 +2433,7 @@ class TextProcessor:
             num_str = num_str.split("|", maxsplit=1)[0]
         
         if num2words_kwargs["lang"].startswith("es"):
-            num_str.replace(" and ", " y ")
+            num_str = num_str.replace(" and ", " y ")
 
         # Add original whitespace back in
         first_ws, last_ws = settings.get_whitespace(word.text_with_ws)
