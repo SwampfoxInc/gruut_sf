@@ -2428,11 +2428,12 @@ class TextProcessor:
             # Replace num2words separator with and
             num_str = num_str.replace("|", " and")
             num_str = num_str.replace(" and ", " ", num_str.count(" and ") - 1)  # Only the last "and" is retained
-            if num2words_kwargs["lang"].startswith("es"):
-                num_str.replace(" and ", " y ")
         else:
             # Remove 'zero cents' part
             num_str = num_str.split("|", maxsplit=1)[0]
+        
+        if num2words_kwargs["lang"].startswith("es"):
+            num_str.replace(" and ", " y ")
 
         # Add original whitespace back in
         first_ws, last_ws = settings.get_whitespace(word.text_with_ws)
