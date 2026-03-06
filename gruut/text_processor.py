@@ -479,6 +479,7 @@ class TextProcessor:
         verbalize_currency: bool = True,
         verbalize_dates: bool = True,
         verbalize_times: bool = True,
+        verbalize_addresses: bool = True,
         max_passes: int = 5,
     ) -> typing.Tuple[GraphType, Node]:
         """
@@ -500,6 +501,7 @@ class TextProcessor:
             verbalize_currency: True if annotated currency amounts should be expanded into words
             verbalize_dates: True if annotated dates should be expanded into words
             verbalize_times: True if annotated clock times should be expanded into words
+            verbalize_addresses: True if annotated address parts should be expanded into words
 
         Returns:
             graph, root: text graph and root node
@@ -1102,6 +1104,10 @@ class TextProcessor:
                     was_changed = True
 
             # Verbalize known classes
+            if verbalize_addresses:
+                if pipeline_transform(self._verbalize_address, graph, root):
+                    was_changed = True
+
             if verbalize_dates:
                 if pipeline_transform(self._verbalize_date, graph, root):
                     was_changed = True
@@ -2457,3 +2463,104 @@ class TextProcessor:
             )
             graph.add_node(currency_word.node, data=currency_word)
             graph.add_edge(word.node, currency_word.node)
+
+    _ZIP_PATTERN = re.compile(r"^\d{5}(-\d{4})?$")
+    _TRAILING_PUNCT_PATTERN = re.compile(r"^(.*?)([.,;:!?]+)$")
+
+    def _verbalize_address(
+        self,
+        graph: GraphType,
+        node: Node,
+    ):
+        """Expand address abbreviations and handle address-specific words.
+
+        Unlike other _verbalize_* methods, this returns True when it modifies
+        a word. This is necessary because clearing interpret_as on passthrough
+        words requires a subsequent pass for number/phoneme detection.
+        """
+        if not isinstance(node, WordNode):
+            return
+
+        word = typing.cast(WordNode, node)
+        if word.interpret_as != InterpretAs.ADDRESS:
+            return
+
+        settings = self.get_settings(word.lang)
+
+        # Separate trailing punctuation (commas, periods, etc.) from the word
+        # so abbreviation lookup works, and punctuation is preserved in output.
+        trailing_punct = ""
+        base_text = word.text
+        punct_match = self._TRAILING_PUNCT_PATTERN.match(base_text)
+        if punct_match:
+            base_text = punct_match.group(1)
+            trailing_punct = punct_match.group(2)
+
+        normalized = base_text.upper()
+        expansion = settings.address_abbreviations.get(normalized)
+
+        if expansion is not None:
+            # Expand abbreviation into child word node(s)
+            first_ws, last_ws = settings.get_whitespace(word.text_with_ws)
+            expanded_str = first_ws + expansion + trailing_punct + last_ws
+
+            child_words = list(settings.split_words(expanded_str))
+            for exp_word_text in child_words:
+                exp_word_text_norm = settings.normalize_whitespace(exp_word_text)
+                if not exp_word_text_norm:
+                    continue
+
+                if not settings.keep_whitespace:
+                    exp_word_text = exp_word_text_norm
+
+                child_word = WordNode(
+                    node=len(graph),
+                    implicit=True,
+                    lang=word.lang,
+                    text=exp_word_text_norm,
+                    text_with_ws=exp_word_text,
+                )
+                graph.add_node(child_word.node, data=child_word)
+                graph.add_edge(word.node, child_word.node)
+
+            return True
+
+        # Check for ZIP code pattern (5 digits or 5+4)
+        if self._ZIP_PATTERN.match(base_text):
+            first_ws, last_ws = settings.get_whitespace(word.text_with_ws)
+            digits = [c for c in base_text if c.isdigit()]
+            last_idx = len(digits) - 1
+
+            for i, digit in enumerate(digits):
+                digit_text = digit
+                digit_text_ws = digit
+
+                if settings.keep_whitespace:
+                    if i == 0:
+                        digit_text_ws = first_ws + digit_text_ws
+                    if i == last_idx:
+                        digit_text_ws = digit_text_ws + trailing_punct + last_ws
+                    elif i < last_idx:
+                        digit_text_ws = digit_text_ws + settings.join_str
+
+                digit_word = WordNode(
+                    node=len(graph),
+                    implicit=True,
+                    lang=word.lang,
+                    text=digit_text,
+                    text_with_ws=digit_text_ws,
+                    interpret_as=InterpretAs.NUMBER,
+                    format=InterpretAsFormat.NUMBER_CARDINAL,
+                    number=Decimal(int(digit)),
+                    is_maybe_number=True,
+                )
+                graph.add_node(digit_word.node, data=digit_word)
+                graph.add_edge(word.node, digit_word.node)
+
+            return True
+
+        # Not a known abbreviation or ZIP code.
+        # Clear interpret_as so the word re-enters the normal pipeline
+        # (numbers detected on next pass, regular words phonemized).
+        word.interpret_as = ""
+        return True

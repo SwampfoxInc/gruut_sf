@@ -362,6 +362,167 @@ def en_is_maybe_time(s: str) -> bool:
     return EN_MAYBE_TIME_PATTERN.match(s) is not None
 
 
+# US address abbreviations (USPS Publication 28)
+# Keys are uppercase, period-stripped forms; values are the spoken expansion.
+# For conflicts between street suffixes and state codes (CT, MT), street suffix wins.
+EN_US_ADDRESS_ABBREVIATIONS: typing.Dict[str, str] = {
+    # Directionals
+    "N": "North",
+    "S": "South",
+    "E": "East",
+    "W": "West",
+    "NE": "Northeast",
+    "NW": "Northwest",
+    "SE": "Southeast",
+    "SW": "Southwest",
+    # Street suffixes (USPS Pub 28)
+    "ST": "Street",
+    "AVE": "Avenue",
+    "BLVD": "Boulevard",
+    "DR": "Drive",
+    "LN": "Lane",
+    "RD": "Road",
+    "CT": "Court",
+    "PL": "Place",
+    "CIR": "Circle",
+    "WAY": "Way",
+    "PKWY": "Parkway",
+    "HWY": "Highway",
+    "TRL": "Trail",
+    "TER": "Terrace",
+    "TERR": "Terrace",
+    "SQ": "Square",
+    "LOOP": "Loop",
+    "CRES": "Crescent",
+    "FWY": "Freeway",
+    "EXPY": "Expressway",
+    "MT": "Mount",
+    "PT": "Point",
+    "BND": "Bend",
+    "HOLW": "Hollow",
+    "XING": "Crossing",
+    "ALY": "Alley",
+    "TPKE": "Turnpike",
+    "RTE": "Route",
+    # Unit designators
+    "APT": "Apartment",
+    "STE": "Suite",
+    "BLDG": "Building",
+    "FL": "Floor",
+    "RM": "Room",
+    "DEPT": "Department",
+    "UNIT": "Unit",
+    "LOT": "Lot",
+    "SPC": "Space",
+    "TRLR": "Trailer",
+    # US state abbreviations (excluding those that conflict with suffixes above)
+    "AL": "Alabama",
+    "AK": "Alaska",
+    "AZ": "Arizona",
+    "AR": "Arkansas",
+    "CA": "California",
+    "CO": "Colorado",
+    # CT conflicts with Court (street suffix wins)
+    "DE": "Delaware",
+    "DC": "District of Columbia",
+    "GA": "Georgia",
+    "HI": "Hawaii",
+    "ID": "Idaho",
+    "IL": "Illinois",
+    "IN": "Indiana",
+    "IA": "Iowa",
+    "KS": "Kansas",
+    "KY": "Kentucky",
+    "LA": "Louisiana",
+    "ME": "Maine",
+    "MD": "Maryland",
+    "MA": "Massachusetts",
+    "MI": "Michigan",
+    "MN": "Minnesota",
+    "MS": "Mississippi",
+    "MO": "Missouri",
+    # MT conflicts with Mount (street suffix wins)
+    "NB": "Nebraska",
+    "NV": "Nevada",
+    "NH": "New Hampshire",
+    "NJ": "New Jersey",
+    "NM": "New Mexico",
+    "NY": "New York",
+    "NC": "North Carolina",
+    "ND": "North Dakota",
+    "OH": "Ohio",
+    "OK": "Oklahoma",
+    "OR": "Oregon",
+    "PA": "Pennsylvania",
+    "RI": "Rhode Island",
+    "SC": "South Carolina",
+    "SD": "South Dakota",
+    "TN": "Tennessee",
+    "TX": "Texas",
+    "UT": "Utah",
+    "VT": "Vermont",
+    "VA": "Virginia",
+    "WA": "Washington",
+    "WV": "West Virginia",
+    "WI": "Wisconsin",
+    "WY": "Wyoming",
+    # Other
+    "PO": "Post Office",
+}
+
+# Spanish address abbreviations
+ES_ADDRESS_ABBREVIATIONS: typing.Dict[str, str] = {
+    # Street types
+    "AV": "Avenida",
+    "AVDA": "Avenida",
+    "C": "Calle",
+    "PZA": "Plaza",
+    "PSO": "Paseo",
+    "BLVD": "Bulevar",
+    "CTRA": "Carretera",
+    "CMNO": "Camino",
+    "RONDA": "Ronda",
+    # Unit designators
+    "DPTO": "Departamento",
+    "PISO": "Piso",
+    "PTA": "Puerta",
+    "ESC": "Escalera",
+    # Directionals
+    "N": "Norte",
+    "S": "Sur",
+    "E": "Este",
+    "O": "Oeste",
+}
+
+# German address abbreviations
+DE_ADDRESS_ABBREVIATIONS: typing.Dict[str, str] = {
+    "STR": "Straße",
+    "NR": "Nummer",
+    "PL": "Platz",
+    "WG": "Weg",
+    "OG": "Obergeschoss",
+    "EG": "Erdgeschoss",
+}
+
+# French address abbreviations
+FR_ADDRESS_ABBREVIATIONS: typing.Dict[str, str] = {
+    "AV": "Avenue",
+    "BD": "Boulevard",
+    "BLVD": "Boulevard",
+    "PL": "Place",
+    "R": "Rue",
+    "RTE": "Route",
+    "ALL": "Allée",
+    "IMP": "Impasse",
+    "CHE": "Chemin",
+    "APP": "Appartement",
+    "BÂT": "Bâtiment",
+    "BAT": "Bâtiment",
+    "ÉT": "Étage",
+    "ET": "Étage",
+}
+
+
 def get_en_us_settings(lang_dir=None, **settings_args) -> TextProcessorSettings:
     """Create settings for English"""
     settings_args = {
@@ -411,6 +572,7 @@ def get_en_us_settings(lang_dir=None, **settings_args) -> TextProcessorSettings:
         },
         "is_maybe_time": en_is_maybe_time,
         "is_maybe_date": en_is_maybe_date,
+        "address_abbreviations": EN_US_ADDRESS_ABBREVIATIONS,
         **settings_args,
     }
 
@@ -436,6 +598,7 @@ def get_de_settings(lang_dir=None, **settings_args) -> TextProcessorSettings:
             ("’", "'"),  # normalize apostrophe
             ("ß", "ss"),  # normalize Eszett
         ],
+        "address_abbreviations": DE_ADDRESS_ABBREVIATIONS,
         **settings_args,
     }
     return TextProcessorSettings(lang="de_DE", **settings_args)
@@ -456,7 +619,8 @@ def get_es_settings(lang_dir=None, **settings_args) -> TextProcessorSettings:
         "end_punctuations": {'"', "”", "»", "]", ")", ">"},
         "default_currency": "EUR",
         "default_date_format": InterpretAsFormat.DATE_MDY,
-        "replacements": [("’", "'")],  # normalize apostrophe
+        "replacements": [("'", "'")],  # normalize apostrophe
+        "address_abbreviations": ES_ADDRESS_ABBREVIATIONS,
         **settings_args,
     }
     return TextProcessorSettings(lang="es_ES", **settings_args)
@@ -671,8 +835,9 @@ def get_fr_settings(lang_dir=None, **settings_args) -> TextProcessorSettings:
         "end_punctuations": {'"', "”", "»", "]", ")", ">"},
         "default_currency": "EUR",
         "default_date_format": InterpretAsFormat.DATE_DMY_ORDINAL,
-        "replacements": [("’", "'")],  # normalize apostrophe
+        "replacements": [("'", "'")],  # normalize apostrophe
         "post_process_sentence": fr_post_process_sentence,
+        "address_abbreviations": FR_ADDRESS_ABBREVIATIONS,
         **settings_args,
     }
     return TextProcessorSettings(lang="fr_FR", **settings_args)

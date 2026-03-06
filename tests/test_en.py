@@ -162,6 +162,94 @@ class EnglishTestCase(unittest.TestCase):
             [word.text for word in sentence],
         )
 
+    def test_address_abbreviation_expansion(self):
+        """Test directional and street suffix expansion in address context"""
+        text = '<say-as interpret-as="address">N Main St</say-as>'
+        sentence = next(sentences(text, lang="en_US", ssml=True))
+        words = [word.text for word in sentence if word.is_spoken]
+
+        self.assertIn("North", words)
+        self.assertIn("Street", words)
+        self.assertIn("Main", words)
+
+    def test_address_state_abbreviation(self):
+        """Test US state abbreviation expansion"""
+        text = '<say-as interpret-as="address">WA</say-as>'
+        sentence = next(sentences(text, lang="en_US", ssml=True))
+        words = [word.text for word in sentence if word.is_spoken]
+
+        self.assertEqual(["Washington"], words)
+
+    def test_address_period_stripping(self):
+        """Test that trailing periods are stripped for abbreviation matching"""
+        text = '<say-as interpret-as="address">St.</say-as>'
+        sentence = next(sentences(text, lang="en_US", ssml=True))
+        words = [word.text for word in sentence if word.is_spoken]
+
+        self.assertEqual(["Street"], words)
+
+    def test_address_zip_code(self):
+        """Test ZIP code is read digit by digit"""
+        text = '<say-as interpret-as="address">98001</say-as>'
+        sentence = next(sentences(text, lang="en_US", ssml=True))
+        words = [word.text for word in sentence if word.is_spoken]
+
+        self.assertEqual(["nine", "eight", "zero", "zero", "one"], words)
+
+    def test_address_passthrough(self):
+        """Test that non-abbreviation words pass through unchanged"""
+        text = '<say-as interpret-as="address">Redmond</say-as>'
+        sentence = next(sentences(text, lang="en_US", ssml=True))
+        words = [word.text for word in sentence if word.is_spoken]
+
+        self.assertEqual(["Redmond"], words)
+
+    def test_address_number_verbalization(self):
+        """Test that street numbers are verbalized as cardinals"""
+        text = '<say-as interpret-as="address">123</say-as>'
+        sentence = next(sentences(text, lang="en_US", ssml=True))
+        words = [word.text for word in sentence if word.is_spoken]
+
+        # Should be verbalized via normal number pipeline
+        self.assertIn("one", words)
+        self.assertIn("hundred", words)
+
+    def test_address_trailing_punctuation(self):
+        """Test that trailing punctuation (comma) is preserved after expansion"""
+        text = '<say-as interpret-as="address">St, Main</say-as>'
+        sentence = next(sentences(text, lang="en_US", ssml=True))
+        words = [word.text for word in sentence]
+
+        # "St," should expand to "Street" with comma preserved as minor break
+        self.assertIn("Street", words)
+        self.assertIn(",", words)
+        self.assertIn("Main", words)
+
+    def test_address_multi_word_expansion(self):
+        """Test state abbreviation that expands to multiple words"""
+        text = '<say-as interpret-as="address">DC</say-as>'
+        sentence = next(sentences(text, lang="en_US", ssml=True))
+        words = [word.text for word in sentence if word.is_spoken]
+
+        # DC -> District of Columbia (3 words)
+        self.assertEqual(["District", "of", "Columbia"], words)
+
+    def test_address_dr_in_address_context(self):
+        """Test Dr. expands to Drive (not Doctor) in address context"""
+        text = '<say-as interpret-as="address">Dr</say-as>'
+        sentence = next(sentences(text, lang="en_US", ssml=True))
+        words = [word.text for word in sentence if word.is_spoken]
+
+        self.assertEqual(["Drive"], words)
+
+    def test_address_unit_designator(self):
+        """Test unit designator expansion"""
+        text = '<say-as interpret-as="address">Apt</say-as>'
+        sentence = next(sentences(text, lang="en_US", ssml=True))
+        words = [word.text for word in sentence if word.is_spoken]
+
+        self.assertEqual(["Apartment"], words)
+
 
 # -----------------------------------------------------------------------------
 
