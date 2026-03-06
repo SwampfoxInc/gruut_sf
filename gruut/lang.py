@@ -619,7 +619,7 @@ def get_es_settings(lang_dir=None, **settings_args) -> TextProcessorSettings:
         "end_punctuations": {'"', "”", "»", "]", ")", ">"},
         "default_currency": "EUR",
         "default_date_format": InterpretAsFormat.DATE_MDY,
-        "replacements": [("'", "'")],  # normalize apostrophe
+        "replacements": [("’", "'")],  # normalize apostrophe
         "address_abbreviations": ES_ADDRESS_ABBREVIATIONS,
         **settings_args,
     }
