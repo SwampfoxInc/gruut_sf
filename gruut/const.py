@@ -158,6 +158,9 @@ class InterpretAs(str, Enum):
     TIME = "time"
     """Word should be interpreted as a time on the clock"""
 
+    ADDRESS = "address"
+    """Word should be interpreted as part of a street address"""
+
     WORD = "word"
     """Interpret as regular word"""
 
@@ -651,6 +654,10 @@ class TextProcessorSettings:
 
     spell_out_words: typing.Dict[str, str] = field(default_factory=dict)
     """Written form, spoken form pairs that are applied with interpret-as="spell-out" in <say-as>"""
+
+    address_abbreviations: typing.Dict[str, str] = field(default_factory=dict)
+    """Mapping from uppercase abbreviation (without trailing period) to expanded form.
+    Used when interpret-as="address" is specified in SSML <say-as>."""
 
     # Breaks
     major_breaks: typing.Set[str] = field(default_factory=set)
