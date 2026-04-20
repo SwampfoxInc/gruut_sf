@@ -196,6 +196,24 @@ class EnglishTestCase(unittest.TestCase):
 
         self.assertEqual(["nine", "eight", "zero", "zero", "one"], words)
 
+    def test_address_mtn_abbreviation(self):
+        """Test MTN expands to Mountain in address context"""
+        text = '<say-as interpret-as="address">Mtn View Rd</say-as>'
+        sentence = next(sentences(text, lang="en_US", ssml=True))
+        words = [word.text for word in sentence if word.is_spoken]
+
+        self.assertIn("Mountain", words)
+        self.assertIn("View", words)
+        self.assertIn("Road", words)
+
+    def test_address_mtn_with_period(self):
+        """Test MTN with trailing period expands to Mountain"""
+        text = '<say-as interpret-as="address">Mtn.</say-as>'
+        sentence = next(sentences(text, lang="en_US", ssml=True))
+        words = [word.text for word in sentence if word.is_spoken]
+
+        self.assertEqual(["Mountain"], words)
+
     def test_address_passthrough(self):
         """Test that non-abbreviation words pass through unchanged"""
         text = '<say-as interpret-as="address">Redmond</say-as>'

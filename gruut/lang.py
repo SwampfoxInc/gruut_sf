@@ -397,6 +397,7 @@ EN_US_ADDRESS_ABBREVIATIONS: typing.Dict[str, str] = {
     "FWY": "Freeway",
     "EXPY": "Expressway",
     "MT": "Mount",
+    "MTN": "Mountain",
     "PT": "Point",
     "BND": "Bend",
     "HOLW": "Hollow",
