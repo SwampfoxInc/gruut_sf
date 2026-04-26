@@ -2214,6 +2214,8 @@ class TextProcessor:
                     node=len(graph),
                     implicit=True,
                     lang=word.lang,
+                    voice=word.voice,
+                    rate=word.rate,
                     text=number_word_text_norm,
                     text_with_ws=number_word_text,
                 )
@@ -2315,6 +2317,8 @@ class TextProcessor:
                 node=len(graph),
                 implicit=True,
                 lang=word.lang,
+                voice=word.voice,
+                rate=word.rate,
                 text=date_word_text_norm,
                 text_with_ws=date_word_text,
             )
@@ -2364,6 +2368,8 @@ class TextProcessor:
                 node=len(graph),
                 implicit=True,
                 lang=word.lang,
+                voice=word.voice,
+                rate=word.rate,
                 text=time_word_text_norm,
                 text_with_ws=time_word_text,
             )
@@ -2458,6 +2464,8 @@ class TextProcessor:
                 node=len(graph),
                 implicit=True,
                 lang=word.lang,
+                voice=word.voice,
+                rate=word.rate,
                 text=currency_word_text_norm,
                 text_with_ws=currency_word_text,
             )
@@ -2517,6 +2525,8 @@ class TextProcessor:
                     node=len(graph),
                     implicit=True,
                     lang=word.lang,
+                    voice=word.voice,
+                    rate=word.rate,
                     text=exp_word_text_norm,
                     text_with_ws=exp_word_text,
                 )
@@ -2547,6 +2557,8 @@ class TextProcessor:
                     node=len(graph),
                     implicit=True,
                     lang=word.lang,
+                    voice=word.voice,
+                    rate=word.rate,
                     text=digit_text,
                     text_with_ws=digit_text_ws,
                     interpret_as=InterpretAs.NUMBER,
