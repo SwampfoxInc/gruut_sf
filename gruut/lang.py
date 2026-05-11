@@ -472,27 +472,75 @@ EN_US_ADDRESS_ABBREVIATIONS: typing.Dict[str, str] = {
 }
 
 # Spanish address abbreviations
+# Includes Spanish-style abbreviations (AV, C, PZA, ...) for native ES addresses
+# and US-style abbreviations (ST, BLVD, PKWY, ...) mapped to Spanish equivalents
+# so US addresses can be read naturally in Spanish TTS.
 ES_ADDRESS_ABBREVIATIONS: typing.Dict[str, str] = {
-    # Street types
+    # Spanish street types
     "AV": "Avenida",
     "AVDA": "Avenida",
     "C": "Calle",
     "PZA": "Plaza",
     "PSO": "Paseo",
-    "BLVD": "Bulevar",
     "CTRA": "Carretera",
     "CMNO": "Camino",
     "RONDA": "Ronda",
-    # Unit designators
+    # Spanish unit designators
     "DPTO": "Departamento",
     "PISO": "Piso",
     "PTA": "Puerta",
     "ESC": "Escalera",
-    # Directionals
+    # US-style directionals
     "N": "Norte",
     "S": "Sur",
     "E": "Este",
     "O": "Oeste",
+    "W": "Oeste",
+    "NE": "Noreste",
+    "NW": "Noroeste",
+    "SE": "Sureste",
+    "SW": "Suroeste",
+    # US-style street suffixes (USPS Pub 28) mapped to Spanish equivalents
+    "ST": "Calle",
+    "AVE": "Avenida",
+    "BLVD": "Bulevar",
+    "DR": "Avenida",
+    "LN": "Vereda",
+    "RD": "Carretera",
+    "CT": "Plaza",
+    "PL": "Plaza",
+    "CIR": "Glorieta",
+    "WAY": "Vía",
+    "PKWY": "Avenida",
+    "HWY": "Carretera",
+    "TRL": "Sendero",
+    "TER": "Terraza",
+    "TERR": "Terraza",
+    "SQ": "Plaza",
+    "LOOP": "Lazo",
+    "CRES": "Creciente",
+    "FWY": "Autopista",
+    "EXPY": "Autopista",
+    "MT": "Monte",
+    "MTN": "Montaña",
+    "PT": "Punta",
+    "BND": "Curva",
+    "HOLW": "Hondonada",
+    "XING": "Cruce",
+    "ALY": "Callejón",
+    "TPKE": "Autopista",
+    "RTE": "Ruta",
+    # US-style unit designators
+    "APT": "Apartamento",
+    "STE": "Suite",
+    "BLDG": "Edificio",
+    "FL": "Piso",
+    "RM": "Habitación",
+    "DEPT": "Departamento",
+    "UNIT": "Unidad",
+    "LOT": "Lote",
+    "SPC": "Espacio",
+    "TRLR": "Tráiler",
 }
 
 # German address abbreviations
