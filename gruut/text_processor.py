@@ -2485,8 +2485,7 @@ class TextProcessor:
 
         Walks the SentenceNode's leaves forward from `word`, skipping break and
         punctuation nodes (so "KY 40202", "KY, 40202", "KY-40202", and
-        "KY - 40202" all count), and checks up to `max_words` subsequent
-        WordNodes for a match against _ZIP_PATTERN.
+        "KY - 40202" all count).
         """
         parent = self._find_parent(graph, word, SentenceNode)
         if parent is None:

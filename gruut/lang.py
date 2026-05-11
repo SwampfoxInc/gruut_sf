@@ -362,8 +362,7 @@ def en_is_maybe_time(s: str) -> bool:
     return EN_MAYBE_TIME_PATTERN.match(s) is not None
 
 
-# US address abbreviations (USPS Publication 28 Appendix C)
-# Keys are uppercase, period-stripped forms; values are the spoken expansion.
+# US address abbreviations (USPS Publication 28)
 # For conflicts between street suffixes and state codes (CT, KY, MT),
 # street suffix wins.
 EN_US_ADDRESS_ABBREVIATIONS: typing.Dict[str, str] = {
@@ -650,7 +649,7 @@ EN_US_ADDRESS_ABBREVIATIONS: typing.Dict[str, str] = {
 
 # US state codes that overlap with street suffixes (Court/Key/Mount).
 # The dispatch in TextProcessor._verbalize_address picks "state" over "suffix"
-# only when a ZIP-shaped token follows within the same address span.
+# only when a ZIP-code follows
 EN_US_STATE_ABBREVIATIONS: typing.Dict[str, str] = {
     "CT": "Connecticut",
     "KY": "Kentucky",

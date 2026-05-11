@@ -662,8 +662,7 @@ class TextProcessorSettings:
     state_abbreviations: typing.Dict[str, str] = field(default_factory=dict)
     """Mapping from uppercase state code to state name for tokens that are also
     valid street suffixes (e.g., CT, KY, MT). Consulted only when the token is
-    followed by a ZIP code in the same address span; otherwise the street
-    suffix in address_abbreviations is used."""
+    followed by a ZIP code."""
 
     # Breaks
     major_breaks: typing.Set[str] = field(default_factory=set)
