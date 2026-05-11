@@ -2475,6 +2475,49 @@ class TextProcessor:
     _ZIP_PATTERN = re.compile(r"^\d{5}(-\d{4})?$")
     _TRAILING_PUNCT_PATTERN = re.compile(r"^(.*?)([.,;:!?]+)$")
 
+    def _lookahead_has_zip(
+        self,
+        graph: GraphType,
+        word: WordNode,
+        max_words: int = 2,
+    ) -> bool:
+        """True if a ZIP-shaped leaf follows `word` within the same SentenceNode.
+
+        Walks the SentenceNode's leaves forward from `word`, skipping break and
+        punctuation nodes (so "KY 40202", "KY, 40202", "KY-40202", and
+        "KY - 40202" all count), and checks up to `max_words` subsequent
+        WordNodes for a match against _ZIP_PATTERN.
+        """
+        parent = self._find_parent(graph, word, SentenceNode)
+        if parent is None:
+            return False
+
+        sentence_leaves = list(leaves(graph, parent))
+        try:
+            idx = next(
+                i for i, leaf in enumerate(sentence_leaves) if leaf.node == word.node
+            )
+        except StopIteration:
+            return False
+
+        word_count = 0
+        for leaf in sentence_leaves[idx + 1 :]:
+            if isinstance(leaf, (BreakWordNode, PunctuationWordNode)):
+                continue
+            if not isinstance(leaf, WordNode):
+                continue
+            sibling = typing.cast(WordNode, leaf)
+            sib_text = sibling.text
+            punct_match = self._TRAILING_PUNCT_PATTERN.match(sib_text)
+            if punct_match:
+                sib_text = punct_match.group(1)
+            if self._ZIP_PATTERN.match(sib_text):
+                return True
+            word_count += 1
+            if word_count >= max_words:
+                break
+        return False
+
     def _verbalize_address(
         self,
         graph: GraphType,
@@ -2505,7 +2548,14 @@ class TextProcessor:
             trailing_punct = punct_match.group(2)
 
         normalized = base_text.upper()
-        expansion = settings.address_abbreviations.get(normalized)
+
+        # If the token is also a state code (CT/KY/MT in EN), prefer the state
+        # expansion only when a ZIP code follows within the same address span.
+        state_expansion = settings.state_abbreviations.get(normalized)
+        if state_expansion is not None and self._lookahead_has_zip(graph, word):
+            expansion = state_expansion
+        else:
+            expansion = settings.address_abbreviations.get(normalized)
 
         if expansion is not None:
             # Expand abbreviation into child word node(s)
