@@ -659,6 +659,11 @@ class TextProcessorSettings:
     """Mapping from uppercase abbreviation (without trailing period) to expanded form.
     Used when interpret-as="address" is specified in SSML <say-as>."""
 
+    state_abbreviations: typing.Dict[str, str] = field(default_factory=dict)
+    """Mapping from uppercase state code to state name for tokens that are also
+    valid street suffixes (e.g., CT, KY, MT). Consulted only when the token is
+    followed by a ZIP code."""
+
     # Breaks
     major_breaks: typing.Set[str] = field(default_factory=set)
     """Set of strings that occur at the end of a word and should break apart sentences."""
