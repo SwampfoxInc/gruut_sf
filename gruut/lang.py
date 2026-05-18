@@ -843,6 +843,72 @@ def get_de_settings(lang_dir=None, **settings_args) -> TextProcessorSettings:
 # Spanish (es-es, Español)
 # -----------------------------------------------------------------------------
 
+ES_TIME_PATTERN = re.compile(
+    r"""^((0?[0-9])|(1[0-1])|(1[2-9])|(2[0-3]))  # hours
+         (?::
+         ([0-5][0-9]))?                          # minutes
+         \s*(a\.?\s*m\.?|p\.?\s*m\.?)?           # am/pm (accepts "a.m.", "am", "a. m.")
+         $""",
+    re.IGNORECASE | re.X,
+)
+
+ES_MAYBE_TIME_PATTERN = re.compile(r"[0-9]+[:ap]", re.IGNORECASE)
+
+
+def es_parse_time(text: str) -> typing.Optional[Time]:
+    """Parse Spanish clock time (e.g. 13:59, 09:45 a.m.)"""
+    match = ES_TIME_PATTERN.match(text.strip().lower())
+    if match is None:
+        return None
+
+    hours = int(match.group(1))
+    maybe_minutes = match.group(6)
+    minutes = 0 if maybe_minutes is None else int(maybe_minutes)
+    period = match.group(7)
+
+    if period is not None:
+        # Normalize period
+        if "a" in period:
+            period = "A.M."
+        else:
+            period = "P.M."
+    else:
+        if ":" not in text:
+            # Require a colon if no period is specified to avoid parsing plain
+            # numbers like "1" into time expressions.
+            return None
+
+    return Time(hours=hours, minutes=minutes, period=period)
+
+
+def es_verbalize_time(time: Time) -> typing.Iterable[str]:
+    """Convert time into Spanish words"""
+
+    hour = time.hours
+
+    if hour > 12:
+        hour -= 12
+    elif hour == 0:
+        hour = 12
+
+    # Spanish uses the feminine "una" for 1 o'clock (agrees with implicit "la hora").
+    if hour == 1:
+        yield "una"
+    else:
+        yield str(hour)
+
+    minute = time.minutes
+    if minute > 0:
+        yield str(minute)
+
+    if time.period is not None:
+        yield time.period
+
+
+def es_is_maybe_time(s: str) -> bool:
+    """True if string is maybe a Spanish time"""
+    return ES_MAYBE_TIME_PATTERN.match(s) is not None
+
 
 def get_es_settings(lang_dir=None, **settings_args) -> TextProcessorSettings:
     """Create settings for Spanish"""
@@ -855,6 +921,9 @@ def get_es_settings(lang_dir=None, **settings_args) -> TextProcessorSettings:
         "default_currency": "EUR",
         "default_date_format": InterpretAsFormat.DATE_MDY,
         "replacements": [("’", "'")],  # normalize apostrophe
+        "parse_time": es_parse_time,
+        "verbalize_time": es_verbalize_time,
+        "is_maybe_time": es_is_maybe_time,
         "address_abbreviations": ES_ADDRESS_ABBREVIATIONS,
         **settings_args,
     }
