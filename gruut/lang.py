@@ -881,28 +881,44 @@ def es_parse_time(text: str) -> typing.Optional[Time]:
     return Time(hours=hours, minutes=minutes, period=period)
 
 
+def _es_time_of_day_words(hour_24: int) -> typing.List[str]:
+    """Spanish time-of-day phrase ("de la mañana/tarde/noche") for a 24h hour value."""
+    if 5 <= hour_24 <= 11:
+        return ["de", "la", "mañana"]
+    if 12 <= hour_24 <= 19:
+        return ["de", "la", "tarde"]
+    # 20-23 and 0-4
+    return ["de", "la", "noche"]
+
+
 def es_verbalize_time(time: Time) -> typing.Iterable[str]:
-    """Convert time into Spanish words"""
+    """Convert time into Spanish words (e.g. "una cincuenta y nueve de la tarde")"""
 
-    hour = time.hours
+    # Resolve the actual 24-hour value so the time-of-day phrase is correct
+    # whether the input was 24h ("13:59") or 12h with period ("1:59 p.m.").
+    hour_24 = time.hours
+    if time.period == "P.M." and hour_24 < 12:
+        hour_24 += 12
+    elif time.period == "A.M." and hour_24 == 12:
+        hour_24 = 0
 
-    if hour > 12:
-        hour -= 12
-    elif hour == 0:
-        hour = 12
+    # 12-hour display value: 0 -> 12, 13 -> 1, etc.
+    hour_12 = hour_24 % 12
+    if hour_12 == 0:
+        hour_12 = 12
 
     # Spanish uses the feminine "una" for 1 o'clock (agrees with implicit "la hora").
-    if hour == 1:
+    # num2words('es', 1) returns "uno", so emit "una" literally instead of "1".
+    if hour_12 == 1:
         yield "una"
     else:
-        yield str(hour)
+        yield str(hour_12)
 
     minute = time.minutes
     if minute > 0:
         yield str(minute)
 
-    if time.period is not None:
-        yield time.period
+    yield from _es_time_of_day_words(hour_24)
 
 
 def es_is_maybe_time(s: str) -> bool:
