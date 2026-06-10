@@ -25,8 +25,9 @@ version_path = module_dir / "VERSION"
 with open(version_path, "r", encoding="utf-8") as version_file:
     version = version_file.read().strip()
 
-# x.y.z -> x.0.0
-base_version = ".".join(version.split(".")[:-2] + ["0", "0"])
+# x.y.z[.postN] -> x.0.0
+parts = version.split(".")[:3]
+base_version = ".".join(parts[:-2] + ["0", "0"])
 
 # -----------------------------------------------------------------------------
 # extras_require
