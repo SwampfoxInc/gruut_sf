@@ -843,6 +843,88 @@ def get_de_settings(lang_dir=None, **settings_args) -> TextProcessorSettings:
 # Spanish (es-es, Español)
 # -----------------------------------------------------------------------------
 
+ES_TIME_PATTERN = re.compile(
+    r"""^((0?[0-9])|(1[0-1])|(1[2-9])|(2[0-3]))  # hours
+         (?::
+         ([0-5][0-9]))?                          # minutes
+         \s*(a\.?\s*m\.?|p\.?\s*m\.?)?           # am/pm (accepts "a.m.", "am", "a. m.")
+         $""",
+    re.IGNORECASE | re.X,
+)
+
+ES_MAYBE_TIME_PATTERN = re.compile(r"[0-9]+[:ap]", re.IGNORECASE)
+
+
+def es_parse_time(text: str) -> typing.Optional[Time]:
+    """Parse Spanish clock time (e.g. 13:59, 09:45 a.m.)"""
+    match = ES_TIME_PATTERN.match(text.strip().lower())
+    if match is None:
+        return None
+
+    hours = int(match.group(1))
+    maybe_minutes = match.group(6)
+    minutes = 0 if maybe_minutes is None else int(maybe_minutes)
+    period = match.group(7)
+
+    if period is not None:
+        # Normalize period
+        if "a" in period:
+            period = "A.M."
+        else:
+            period = "P.M."
+    else:
+        if ":" not in text:
+            # Require a colon if no period is specified to avoid parsing plain
+            # numbers like "1" into time expressions.
+            return None
+
+    return Time(hours=hours, minutes=minutes, period=period)
+
+
+def _es_time_of_day_words(hour_24: int) -> typing.List[str]:
+    """Spanish time-of-day phrase ("de la mañana/tarde/noche") for a 24h hour value."""
+    if 5 <= hour_24 <= 11:
+        return ["de", "la", "mañana"]
+    if 12 <= hour_24 <= 19:
+        return ["de", "la", "tarde"]
+    # 20-23 and 0-4
+    return ["de", "la", "noche"]
+
+
+def es_verbalize_time(time: Time) -> typing.Iterable[str]:
+    """Convert time into Spanish words (e.g. "una cincuenta y nueve de la tarde")"""
+
+    # Resolve the actual 24-hour value so the time-of-day phrase is correct
+    # whether the input was 24h ("13:59") or 12h with period ("1:59 p.m.").
+    hour_24 = time.hours
+    if time.period == "P.M." and hour_24 < 12:
+        hour_24 += 12
+    elif time.period == "A.M." and hour_24 == 12:
+        hour_24 = 0
+
+    # 12-hour display value: 0 -> 12, 13 -> 1, etc.
+    hour_12 = hour_24 % 12
+    if hour_12 == 0:
+        hour_12 = 12
+
+    # Spanish uses the feminine "una" for 1 o'clock (agrees with implicit "la hora").
+    # num2words('es', 1) returns "uno", so emit "una" literally instead of "1".
+    if hour_12 == 1:
+        yield "una"
+    else:
+        yield str(hour_12)
+
+    minute = time.minutes
+    if minute > 0:
+        yield str(minute)
+
+    yield from _es_time_of_day_words(hour_24)
+
+
+def es_is_maybe_time(s: str) -> bool:
+    """True if string is maybe a Spanish time"""
+    return ES_MAYBE_TIME_PATTERN.match(s) is not None
+
 
 def get_es_settings(lang_dir=None, **settings_args) -> TextProcessorSettings:
     """Create settings for Spanish"""
@@ -855,6 +937,9 @@ def get_es_settings(lang_dir=None, **settings_args) -> TextProcessorSettings:
         "default_currency": "EUR",
         "default_date_format": InterpretAsFormat.DATE_MDY,
         "replacements": [("’", "'")],  # normalize apostrophe
+        "parse_time": es_parse_time,
+        "verbalize_time": es_verbalize_time,
+        "is_maybe_time": es_is_maybe_time,
         "address_abbreviations": ES_ADDRESS_ABBREVIATIONS,
         **settings_args,
     }
