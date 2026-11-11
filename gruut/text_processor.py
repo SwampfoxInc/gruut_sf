@@ -2080,8 +2080,17 @@ class TextProcessor:
             time = settings.parse_time(text)
             if time is not None:
                 # Collapse into a single word
+                # Keep the language of the collapsed words: without it the time is
+                # verbalized in the processor's default language ("three forty
+                # five P M" for a Spanish request after an English one).
                 new_node = WordNode(
-                    node=len(graph), text=text, interpret_as=InterpretAs.TIME, time=time
+                    node=len(graph),
+                    text=text,
+                    interpret_as=InterpretAs.TIME,
+                    time=time,
+                    lang=words[0].lang,
+                    voice=words[0].voice,
+                    rate=words[0].rate,
                 )
                 graph.add_node(new_node.node, data=new_node)
 
@@ -2187,8 +2196,16 @@ class TextProcessor:
                 final_num = int(decimal_num)
 
             try:
-                # Convert to words (e.g., 100 -> one hundred)
-                num_str = num2words(final_num, **num2words_kwargs)
+                if (
+                    (word.format == InterpretAsFormat.NUMBER_ORDINAL)
+                    and (settings.verbalize_ordinal is not None)
+                    and (not num_has_frac)
+                ):
+                    # Language-specific ordinal words (e.g., Spanish gender suffix)
+                    num_str = " ".join(settings.verbalize_ordinal(final_num, word.text))
+                else:
+                    # Convert to words (e.g., 100 -> one hundred)
+                    num_str = num2words(final_num, **num2words_kwargs)
             except NotImplementedError:
                 _LOGGER.exception(
                     "Failed to convert number %s to words for language %s",
@@ -2426,7 +2443,7 @@ class TextProcessor:
 
         # Custom separator so we can remove 'zero cents'
         num2words_kwargs["separator"] = "|"
-
+        
         try:
             num_str = num2words(float(decimal_num), **num2words_kwargs)
         except Exception:
@@ -2443,7 +2460,7 @@ class TextProcessor:
         else:
             # Remove 'zero cents' part
             num_str = num_str.split("|", maxsplit=1)[0]
-        
+
         if num2words_kwargs["lang"].startswith("es"):
             num_str = num_str.replace(" and ", " y ")
 
@@ -2474,6 +2491,95 @@ class TextProcessor:
 
     _ZIP_PATTERN = re.compile(r"^\d{5}(-\d{4})?$")
     _TRAILING_PUNCT_PATTERN = re.compile(r"^(.*?)([.,;:!?]+)$")
+    # Ordinal indicator suffix: 3º, 2ª, 1.º (Spanish/Portuguese/Italian)
+    _ORDINAL_SUFFIX_PATTERN = re.compile(r"^(\d+)\.?[ºª°]$")
+
+    def _strip_trailing_punct(self, text: str) -> typing.Tuple[str, str]:
+        """Split "Dr.," into ("Dr", ".,")"""
+        punct_match = self._TRAILING_PUNCT_PATTERN.match(text)
+        if punct_match:
+            return punct_match.group(1), punct_match.group(2)
+
+        return text, ""
+
+    def _address_neighbors(
+        self, graph: GraphType, word: WordNode
+    ) -> typing.Tuple[typing.Optional[Node], typing.Optional[Node]]:
+        """Leaves immediately before and after `word` within its SentenceNode"""
+        parent = self._find_parent(graph, word, SentenceNode)
+        if parent is None:
+            return None, None
+
+        sentence_leaves = list(leaves(graph, parent))
+        for idx, leaf in enumerate(sentence_leaves):
+            if leaf.node == word.node:
+                prev_leaf = sentence_leaves[idx - 1] if idx > 0 else None
+                next_leaf = (
+                    sentence_leaves[idx + 1]
+                    if (idx + 1) < len(sentence_leaves)
+                    else None
+                )
+                return prev_leaf, next_leaf
+
+        return None, None
+
+    @staticmethod
+    def _is_address_word(leaf: typing.Optional[Node]) -> bool:
+        """True if leaf is a not-yet-verbalized word of the same address span"""
+        return isinstance(leaf, WordNode) and (leaf.interpret_as == InterpretAs.ADDRESS)
+
+    def _address_reads_as_saint(
+        self,
+        graph: GraphType,
+        prev_leaf: typing.Optional[Node],
+        next_leaf: typing.Optional[Node],
+        trailing_punct: str,
+        settings: TextProcessorSettings,
+    ) -> bool:
+        """Decide Saint vs Street for the ambiguous "St" address token.
+
+        Saint starts a proper name, so the next token must be a capitalized
+        plain word (not a suffix/unit/state abbreviation or a number) and "St"
+        must open a segment: sentence start, after a break or comma, or after
+        a house number ("10 St. Charles St"). Everything else is Street
+        ("Main St", "Main St, Boulder", "Main St Apt 4").
+        """
+        if trailing_punct.replace(".", ""):
+            # "St," closes the street segment
+            return False
+
+        if not self._is_address_word(next_leaf):
+            return False
+
+        next_text, _ = self._strip_trailing_punct(typing.cast(WordNode, next_leaf).text)
+        if not (next_text[:1].isalpha() and next_text[:1].isupper()):
+            return False
+
+        next_norm = next_text.upper()
+        if (next_norm in settings.address_abbreviations) or (
+            next_norm in settings.state_abbreviations
+        ):
+            return False
+
+        if (prev_leaf is None) or (not isinstance(prev_leaf, WordNode)):
+            # Sentence start, or a break/punctuation node before "St"
+            return True
+
+        if prev_leaf.implicit and any(
+            self._is_address_word(graph.nodes[pred][DATA_PROP])
+            for pred in graph.predecessors(prev_leaf.node)
+        ):
+            # Previous token was itself an expanded address abbreviation
+            # ("500 N St. Marys St": North, then Saint Marys Street)
+            return True
+
+        prev_text, prev_punct = self._strip_trailing_punct(prev_leaf.text)
+        if any(c in prev_punct for c in ",;:"):
+            # "Bldg 1, St. Paul"
+            return True
+
+        # "10 St. Charles St" (yes) vs. "Main St Paul" (no)
+        return prev_text[:1].isdigit()
 
     def _lookahead_has_zip(
         self,
@@ -2539,27 +2645,60 @@ class TextProcessor:
 
         # Separate trailing punctuation (commas, periods, etc.) from the word
         # so abbreviation lookup works, and punctuation is preserved in output.
-        trailing_punct = ""
-        base_text = word.text
-        punct_match = self._TRAILING_PUNCT_PATTERN.match(base_text)
-        if punct_match:
-            base_text = punct_match.group(1)
-            trailing_punct = punct_match.group(2)
-
+        base_text, trailing_punct = self._strip_trailing_punct(word.text)
         normalized = base_text.upper()
+        first_ws, last_ws = settings.get_whitespace(word.text_with_ws)
+
+        prev_leaf, next_leaf = self._address_neighbors(graph, word)
+        address_continues = self._is_address_word(next_leaf)
+
+        # Inside an address span a period followed by more address words is an
+        # abbreviation dot ("Lakeshore Dr., Bldg 1"), never a sentence end.
+        # Keeping it would split the sentence and pause after "Drive".
+        if address_continues and trailing_punct.startswith("."):
+            trailing_punct = trailing_punct.lstrip(".")
+
+        expansion: typing.Optional[str] = None
+        slash_rest: typing.Optional[str] = None
 
         # If the token is also a state code (CT/KY/MT in EN), prefer the state
         # expansion only when a ZIP code follows within the same address span.
         state_expansion = settings.state_abbreviations.get(normalized)
-        if state_expansion is not None and self._lookahead_has_zip(graph, word):
+        if (state_expansion is not None) and self._lookahead_has_zip(graph, word):
             expansion = state_expansion
+        elif (
+            (normalized == "ST")
+            and settings.address_saint_word
+            and self._address_reads_as_saint(
+                graph, prev_leaf, next_leaf, trailing_punct, settings
+            )
+        ):
+            # "St. Paul MN" -> Saint Paul
+            expansion = settings.address_saint_word
         else:
             expansion = settings.address_abbreviations.get(normalized)
+            if (
+                (expansion is not None)
+                and (normalized in settings.address_abbreviations_need_following)
+                and not (address_continues and not trailing_punct)
+            ):
+                # "3º C" is a door letter, "C. Mayor" is Calle Mayor
+                expansion = None
+
+        if (expansion is None) and ("/" in base_text):
+            # Spanish slash forms: "C/" and "C/Mayor" -> Calle (Mayor)
+            prefix, _, rest = base_text.partition("/")
+            if prefix:
+                expansion = settings.address_abbreviations.get(prefix.upper())
+                if expansion is not None:
+                    slash_rest = rest
 
         if expansion is not None:
             # Expand abbreviation into child word node(s)
-            first_ws, last_ws = settings.get_whitespace(word.text_with_ws)
-            expanded_str = first_ws + expansion + trailing_punct + last_ws
+            if slash_rest:
+                expanded_str = first_ws + expansion + settings.join_str
+            else:
+                expanded_str = first_ws + expansion + trailing_punct + last_ws
 
             child_words = list(settings.split_words(expanded_str))
             for exp_word_text in child_words:
@@ -2582,11 +2721,27 @@ class TextProcessor:
                 graph.add_node(child_word.node, data=child_word)
                 graph.add_edge(word.node, child_word.node)
 
+            if slash_rest:
+                # Text after the slash is another address token ("Mayor" in
+                # "C/Mayor"); it is verbalized on the next pass.
+                rest_text = slash_rest + trailing_punct
+                rest_word = WordNode(
+                    node=len(graph),
+                    implicit=True,
+                    lang=word.lang,
+                    voice=word.voice,
+                    rate=word.rate,
+                    text=rest_text,
+                    text_with_ws=rest_text + last_ws,
+                    interpret_as=InterpretAs.ADDRESS,
+                )
+                graph.add_node(rest_word.node, data=rest_word)
+                graph.add_edge(word.node, rest_word.node)
+
             return True
 
         # Check for ZIP code pattern (5 digits or 5+4)
         if self._ZIP_PATTERN.match(base_text):
-            first_ws, last_ws = settings.get_whitespace(word.text_with_ws)
             digits = [c for c in base_text if c.isdigit()]
             last_idx = len(digits) - 1
 
@@ -2620,8 +2775,50 @@ class TextProcessor:
 
             return True
 
+        # Ordinal with indicator suffix (3º, 2ª) for languages that verbalize it
+        ordinal_match = self._ORDINAL_SUFFIX_PATTERN.match(base_text)
+        if (ordinal_match is not None) and (settings.verbalize_ordinal is not None):
+            ordinal_word = WordNode(
+                node=len(graph),
+                implicit=True,
+                lang=word.lang,
+                voice=word.voice,
+                rate=word.rate,
+                text=base_text,
+                text_with_ws=first_ws
+                + base_text
+                + (settings.join_str if trailing_punct else last_ws),
+                interpret_as=InterpretAs.NUMBER,
+                format=InterpretAsFormat.NUMBER_ORDINAL,
+                number=Decimal(int(ordinal_match.group(1))),
+                is_maybe_number=True,
+            )
+            graph.add_node(ordinal_word.node, data=ordinal_word)
+            graph.add_edge(word.node, ordinal_word.node)
+
+            if trailing_punct:
+                # Punctuation becomes a break on the next pass
+                punct_word = WordNode(
+                    node=len(graph),
+                    implicit=True,
+                    lang=word.lang,
+                    voice=word.voice,
+                    rate=word.rate,
+                    text=trailing_punct,
+                    text_with_ws=trailing_punct + last_ws,
+                )
+                graph.add_node(punct_word.node, data=punct_word)
+                graph.add_edge(word.node, punct_word.node)
+
+            return True
+
         # Not a known abbreviation or ZIP code.
         # Clear interpret_as so the word re-enters the normal pipeline
         # (numbers detected on next pass, regular words phonemized).
+        if (base_text + trailing_punct) != word.text:
+            # Abbreviation period was dropped (see above)
+            word.text = base_text + trailing_punct
+            word.text_with_ws = first_ws + word.text + last_ws
+
         word.interpret_as = ""
         return True

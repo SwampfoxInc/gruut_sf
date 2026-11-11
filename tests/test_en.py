@@ -268,6 +268,174 @@ class EnglishTestCase(unittest.TestCase):
 
         self.assertEqual(["Apartment"], words)
 
+    # ZOR-450: "St." before a proper name is Saint, after a street name is Street
+
+    def _address_sentences(self, text):
+        return list(
+            sentences(
+                f'<say-as interpret-as="address">{text}</say-as>',
+                lang="en_US",
+                ssml=True,
+                phonemes=False,
+                pos=False,
+            )
+        )
+
+    def test_address_saint_city(self):
+        """St. Paul reads as Saint Paul and the abbreviation period does not split the sentence"""
+        sents = self._address_sentences("6 Lakeshore Dr., Bldg 1, St. Paul MN 55101")
+        self.assertEqual(1, len(sents))
+        words = [word.text for word in sents[0] if word.is_spoken]
+        self.assertEqual(
+            [
+                "six",
+                "Lakeshore",
+                "Drive",
+                "Building",
+                "one",
+                "Saint",
+                "Paul",
+                "Minnesota",
+                "five",
+                "five",
+                "one",
+                "zero",
+                "one",
+            ],
+            words,
+        )
+
+    def test_address_saint_street_name_then_street(self):
+        """House number + St. + name is Saint; name + St. is Street"""
+        sents = self._address_sentences(
+            "10 St. Charles St. Apt 4, New Orleans LA 70130"
+        )
+        self.assertEqual(1, len(sents))
+        words = [word.text for word in sents[0] if word.is_spoken]
+        self.assertEqual(
+            [
+                "ten",
+                "Saint",
+                "Charles",
+                "Street",
+                "Apartment",
+                "four",
+                "New",
+                "Orleans",
+                "Louisiana",
+                "seven",
+                "zero",
+                "one",
+                "three",
+                "zero",
+            ],
+            words,
+        )
+
+    def test_address_street_then_saint_after_comma(self):
+        """Main St., St. Louis -> Main Street, Saint Louis"""
+        sents = self._address_sentences("123 Main St., St. Louis MO 63101")
+        self.assertEqual(1, len(sents))
+        words = [word.text for word in sents[0] if word.is_spoken]
+        self.assertEqual(
+            [
+                "one",
+                "hundred",
+                "and",
+                "twenty",
+                "three",
+                "Main",
+                "Street",
+                "Saint",
+                "Louis",
+                "Missouri",
+                "six",
+                "three",
+                "one",
+                "zero",
+                "one",
+            ],
+            words,
+        )
+
+    def test_address_street_before_capitalized_city(self):
+        """A street name before St. keeps Street even when a capitalized city follows"""
+        words = [
+            word.text
+            for word in self._address_sentences("123 Main St. Boulder CO 80301")[0]
+            if word.is_spoken
+        ]
+        self.assertIn("Street", words)
+        self.assertNotIn("Saint", words)
+
+    def test_address_saint_at_start(self):
+        """St. Petersburg FL 33701 -> Saint Petersburg Florida (FL is Floor without a ZIP)"""
+        words = [
+            word.text
+            for word in self._address_sentences("St. Petersburg FL 33701")[0]
+            if word.is_spoken
+        ]
+        self.assertEqual(
+            [
+                "Saint",
+                "Petersburg",
+                "Florida",
+                "three",
+                "three",
+                "seven",
+                "zero",
+                "one",
+            ],
+            words,
+        )
+        words = [
+            word.text for word in self._address_sentences("Fl 2")[0] if word.is_spoken
+        ]
+        self.assertEqual(["Floor", "two"], words)
+
+    def test_address_saint_after_directional(self):
+        """500 N St. Marys St -> North Saint Marys Street"""
+        words = [
+            word.text
+            for word in self._address_sentences("500 N St. Marys St")[0]
+            if word.is_spoken
+        ]
+        self.assertEqual(
+            ["five", "hundred", "North", "Saint", "Marys", "Street"], words
+        )
+
+    def test_address_nebraska_vs_northeast(self):
+        """NE is Nebraska only before a ZIP code, otherwise Northeast"""
+        words = [
+            word.text
+            for word in self._address_sentences("Lincoln NE 68508")[0]
+            if word.is_spoken
+        ]
+        self.assertEqual(
+            ["Lincoln", "Nebraska", "six", "eight", "five", "zero", "eight"], words
+        )
+        words = [
+            word.text
+            for word in self._address_sentences("Main St NE")[0]
+            if word.is_spoken
+        ]
+        self.assertEqual(["Main", "Street", "Northeast"], words)
+
+    def test_address_trailing_period_keeps_sentence_end(self):
+        """A period on the last address word still ends the sentence"""
+        text = (
+            '<speak>Go to <say-as interpret-as="address">123 Main St.</say-as>'
+            " Then turn left.</speak>"
+        )
+        sents = list(
+            sentences(text, lang="en_US", ssml=True, phonemes=False, pos=False)
+        )
+        self.assertEqual(2, len(sents))
+        self.assertEqual(
+            ["Go", "to", "one", "hundred", "and", "twenty", "three", "Main", "Street"],
+            [word.text for word in sents[0] if word.is_spoken],
+        )
+
 
 # -----------------------------------------------------------------------------
 

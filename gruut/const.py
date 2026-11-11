@@ -664,6 +664,21 @@ class TextProcessorSettings:
     valid street suffixes (e.g., CT, KY, MT). Consulted only when the token is
     followed by a ZIP code."""
 
+    address_saint_word: typing.Optional[str] = None
+    """Word spoken for "St" in an address when it starts a proper name ("St. Paul MN",
+    "10 St. Charles St") instead of closing a street name ("Main St").
+    None disables the Saint/Street heuristic."""
+
+    address_abbreviations_need_following: typing.Set[str] = field(default_factory=set)
+    """Uppercase address abbreviations that are only expanded when another address
+    word follows directly (Spanish "C" -> Calle, but "3º C" is a door letter)."""
+
+    verbalize_ordinal: typing.Optional[
+        typing.Callable[[int, str], typing.Iterable[str]]
+    ] = None
+    """Overrides num2words for ordinal numbers. Called with (number, original text)
+    so a language can honor a gender suffix (Spanish "2ª" -> "segunda")."""
+
     # Breaks
     major_breaks: typing.Set[str] = field(default_factory=set)
     """Set of strings that occur at the end of a word and should break apart sentences."""
