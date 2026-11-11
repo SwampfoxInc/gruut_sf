@@ -593,9 +593,9 @@ EN_US_ADDRESS_ABBREVIATIONS: typing.Dict[str, str] = {
     "SPC": "Space",
     "TRLR": "Trailer",
     # US state abbreviations.
-    # CT/KY/MT also appear as street suffixes (Court/Key/Mount) above and are
-    # resolved at dispatch time via EN_US_STATE_ABBREVIATIONS and a lookahead
-    # for a following ZIP code.
+    # CT/KY/MT/FL/NE also appear as street suffixes, unit designators or
+    # directionals above and are resolved at dispatch time via
+    # EN_US_STATE_ABBREVIATIONS and a lookahead for a following ZIP code.
     "AL": "Alabama",
     "AK": "Alaska",
     "AZ": "Arizona",
@@ -647,13 +647,16 @@ EN_US_ADDRESS_ABBREVIATIONS: typing.Dict[str, str] = {
     "PO": "Post Office",
 }
 
-# US state codes that overlap with street suffixes (Court/Key/Mount).
-# The dispatch in TextProcessor._verbalize_address picks "state" over "suffix"
-# only when a ZIP-code follows
+# US state codes that overlap with street suffixes (Court/Key/Mount), the
+# Floor unit designator or the Northeast directional.
+# The dispatch in TextProcessor._verbalize_address picks "state" over the
+# other expansion only when a ZIP code follows.
 EN_US_STATE_ABBREVIATIONS: typing.Dict[str, str] = {
     "CT": "Connecticut",
+    "FL": "Florida",
     "KY": "Kentucky",
     "MT": "Montana",
+    "NE": "Nebraska",
 }
 
 # Spanish address abbreviations
@@ -670,11 +673,56 @@ ES_ADDRESS_ABBREVIATIONS: typing.Dict[str, str] = {
     "CTRA": "Carretera",
     "CMNO": "Camino",
     "RONDA": "Ronda",
+    "PLZA": "Plaza",
+    "Pº": "Paseo",
+    "P°": "Paseo",
+    "GTA": "Glorieta",
+    "TRAV": "Travesía",
+    "TRVA": "Travesía",
+    "PJE": "Pasaje",
+    "CJON": "Callejón",
+    "URB": "Urbanización",
+    "Bº": "Barrio",
+    "B°": "Barrio",
+    "POL": "Polígono",
+    "KM": "kilómetro",
+    # Spanish house-number / postal-code markers
+    "S/N": "sin número",
+    "Nº": "número",
+    "N°": "número",
+    "NUM": "número",
+    "NÚM": "número",
+    "NO": "número",
+    "C.P": "código postal",
+    "CP": "código postal",
     # Spanish unit designators
     "DPTO": "Departamento",
     "PISO": "Piso",
     "PTA": "Puerta",
     "ESC": "Escalera",
+    "BLQ": "Bloque",
+    "BLOQ": "Bloque",
+    "PTAL": "Portal",
+    "EDIF": "Edificio",
+    "ENTLO": "Entresuelo",
+    "DCHA": "derecha",
+    "IZDA": "izquierda",
+    "IZQ": "izquierda",
+    # Latin American address parts (Mexico and others)
+    "COL": "Colonia",
+    "FRACC": "Fraccionamiento",
+    "MZA": "Manzana",
+    "MZ": "Manzana",
+    "LT": "Lote",
+    "INT": "Interior",
+    "EXT": "Exterior",
+    "SECC": "Sección",
+    "CDA": "Cerrada",
+    "PRIV": "Privada",
+    # Saints in street/place names ("C/ Sta. María", "Sto. Domingo"); "St." is
+    # resolved to San/Calle by TextProcessor._address_reads_as_saint
+    "STA": "Santa",
+    "STO": "Santo",
     # US-style directionals
     "N": "Norte",
     "S": "Sur",
@@ -808,6 +856,7 @@ def get_en_us_settings(lang_dir=None, **settings_args) -> TextProcessorSettings:
         "is_maybe_date": en_is_maybe_date,
         "address_abbreviations": EN_US_ADDRESS_ABBREVIATIONS,
         "state_abbreviations": EN_US_STATE_ABBREVIATIONS,
+        "address_saint_word": "Saint",
         **settings_args,
     }
 
@@ -926,6 +975,41 @@ def es_is_maybe_time(s: str) -> bool:
     return ES_MAYBE_TIME_PATTERN.match(s) is not None
 
 
+# 3º, 2ª, 1.º (ordinal indicators)
+ES_ORDINAL_PATTERN = re.compile(r"^(\d+)\.?[ºª°]$")
+
+# A single-token Spanish date needs separators (12/03/2024, 2024-03-12, 12.03.2024).
+# Without this guard every token with a digit goes to dateparser, which turns
+# "2ª" into a date.
+ES_MAYBE_DATE_PATTERN = re.compile(r"[0-9]+[-/.][0-9]+")
+
+
+def es_get_ordinal(text: str) -> typing.Optional[int]:
+    """Parse Spanish ordinal string (e.g., 3º -> 3)"""
+    match = ES_ORDINAL_PATTERN.match(text)
+    if match is not None:
+        return int(match.group(1))
+
+    return None
+
+
+def es_is_maybe_date(s: str) -> bool:
+    """True if string is maybe a Spanish date"""
+    return ES_MAYBE_DATE_PATTERN.match(s) is not None
+
+
+def es_verbalize_ordinal(number: int, text: str) -> typing.List[str]:
+    """Spanish ordinal words honoring the gender of the indicator (2º/2ª)"""
+    from num2words import num2words
+
+    words = num2words(number, lang="es", to="ordinal").split()
+    if text.endswith("ª"):
+        # segundo -> segunda, vigésimo primero -> vigésima primera
+        words = [(w[:-1] + "a") if w.endswith("o") else w for w in words]
+
+    return words
+
+
 def get_es_settings(lang_dir=None, **settings_args) -> TextProcessorSettings:
     """Create settings for Spanish"""
     settings_args = {
@@ -941,6 +1025,11 @@ def get_es_settings(lang_dir=None, **settings_args) -> TextProcessorSettings:
         "verbalize_time": es_verbalize_time,
         "is_maybe_time": es_is_maybe_time,
         "address_abbreviations": ES_ADDRESS_ABBREVIATIONS,
+        "address_abbreviations_need_following": {"C"},
+        "address_saint_word": "San",
+        "get_ordinal": es_get_ordinal,
+        "verbalize_ordinal": es_verbalize_ordinal,
+        "is_maybe_date": es_is_maybe_date,
         **settings_args,
     }
     return TextProcessorSettings(lang="es_ES", **settings_args)
